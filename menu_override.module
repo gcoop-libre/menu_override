@@ -1,0 +1,115 @@
+<?php
+
+define('MENU_OVERRIDE_VISIBILITY_NOTLISTED', 0);
+define('MENU_OVERRIDE_VISIBILITY_LISTED', 1);
+
+/**
+ * Implements hook_form_FORM_ID_alter().
+ *
+ * Alters the menu settings form with our menu override settings.
+ *
+ * @see menu_configure_form()
+ */
+function menu_override_form_menu_configure_alter(&$form, $form_state) {
+  $form['menu_override_menu_main_title'] = array(
+    '#type' => 'item',
+    '#title' => t('Override the source of the Main links'),
+  );
+  $form['menu_override_menu_main_vertical_tabs'] = array(
+    '#type' => 'vertical_tabs',
+  );
+
+  $form['menu_override_menu_secondary_title'] = array(
+    '#type' => 'item',
+    '#title' => t('Override the source of the Secondary links'),
+  );
+  $form['menu_override_menu_secondary_vertical_tabs'] = array(
+    '#type' => 'vertical_tabs',
+  );
+
+  $visivility_options = array(
+    MENU_OVERRIDE_VISIBILITY_NOTLISTED => t('All pages except those listed'),
+    MENU_OVERRIDE_VISIBILITY_LISTED => t('Only the listed pages'),
+  );
+
+  $menus = menu_get_menus();
+  foreach ($menus as $machine_name => $menu_name) {
+    $form['menu_override_menu_main'][$machine_name] = array(
+      '#type' => 'fieldset',
+      '#title' => $menu_name,
+      '#group' => 'menu_override_menu_main_vertical_tabs',
+      '#description' => t('Override the source of the Main Links with the %menu menu', array('%menu' => $menu_name)),
+    );
+    $form['menu_override_menu_main'][$machine_name]["menu_override_menu_main_{$machine_name}_visibility"] = array(
+      '#type' => 'radios',
+      '#title' => t('Override the source on specific pages'),
+      '#options' => $visivility_options,
+      '#default_value' => variable_get("menu_override_menu_main_{$machine_name}_visibility", MENU_OVERRIDE_VISIBILITY_NOTLISTED),
+    );
+    $form['menu_override_menu_main'][$machine_name]["menu_override_menu_main_{$machine_name}_pages"] = array(
+      '#type' => 'textarea',
+      '#title' => '<span class="element-invisible">' . t('Pages') . '</span>',
+      '#default_value' => variable_get("menu_override_menu_main_{$machine_name}_pages", ''),
+      '#description' => t("Specify pages by using their paths. Enter one path per line. The '*' character is a wildcard. Example paths are %blog for the blog page and %blog-wildcard for every personal blog. %front is the front page.", array('%blog' => 'blog', '%blog-wildcard' => 'blog/*', '%front' => '<front>')),
+    );
+
+    $form['menu_override_menu_secondary'][$machine_name] = array(
+      '#type' => 'fieldset',
+      '#title' => $menu_name,
+      '#group' => 'menu_override_menu_secondary_vertical_tabs',
+      '#description' => t('Override the source of the Secondary Links with the %menu menu', array('%menu' => $menu_name)),
+    );
+    $form['menu_override_menu_secondary'][$machine_name]["menu_override_menu_secondary_{$machine_name}_visibility"] = array(
+      '#type' => 'radios',
+      '#title' => t('Override the source on specific pages'),
+      '#options' => $visivility_options,
+      '#default_value' => variable_get("menu_override_menu_secondary_{$machine_name}_visibility", MENU_OVERRIDE_VISIBILITY_NOTLISTED),
+    );
+    $form['menu_override_menu_secondary'][$machine_name]["menu_override_menu_secondary_{$machine_name}_pages"] = array(
+      '#type' => 'textarea',
+      '#title' => '<span class="element-invisible">' . t('Pages') . '</span>',
+      '#default_value' => variable_get("menu_override_menu_secondary_{$machine_name}_pages", ''),
+      '#description' => t("Specify pages by using their paths. Enter one path per line. The '*' character is a wildcard. Example paths are %blog for the blog page and %blog-wildcard for every personal blog. %front is the front page.", array('%blog' => 'blog', '%blog-wildcard' => 'blog/*', '%front' => '<front>')),
+    );
+  }
+}
+
+/**
+ * Check if a path matches a list of pages
+ *
+ * @param $path
+ *   The path that should be checked
+ *
+ * @param $visibility
+ *   The menu should be overrided or not if its included in $pages
+ *
+ * @param $pages
+ *   The list of pages that could match against $path
+ *
+ * @return
+ *   Boolean TRUE if the path matches and the menu source should be overrided.
+ *   FALSE otherwise.
+ */
+function menu_override_page_match($path, $visibility, $pages) {
+  $page_match = FALSE;
+
+  if (!empty($pages)) {
+    // Convert path to lowercase. This allows comparison of the same path
+    // with different case. Ex: /Page, /page, /PAGE.
+    $pages = drupal_strtolower($pages);
+
+    // Compare the lowercase internal and lowercase path alias (if any).
+    $page_match = drupal_match_path($path, $pages);
+    if ($path != $_GET['q']) {
+      $page_match = $page_match || drupal_match_path($_GET['q'], $pages);
+    }
+
+    // When $visibility has a value of 0 (MENU_OVERRIDE_VISIBILITY_NOTLISTED),
+    // the menu is overrided on all pages except those listed in $pages.
+    // When set to 1 (MENU_OVERRIDE_VISIBILITY_LISTED),
+    // it is displayed only on those pages listed in $pages.
+    $page_match = !($visibility xor $page_match);
+  }
+
+  return $page_match;
+}

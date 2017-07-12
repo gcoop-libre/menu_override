@@ -1,0 +1,33 @@
+<?php
+/**
+ * @file
+ * Install, update and uninstall functions for the menu_override module.
+ */
+
+/**
+ * Implements hook_install().
+ */
+function menu_override_install() {
+  db_update('system')
+    ->fields(array(
+      'weight' => 20,
+    ))
+    ->condition('type', 'module')
+    ->condition('name', 'menu_override')
+    ->execute();
+}
+
+/**
+ * Implements hook_uninstall().
+ */
+function menu_override_uninstall() {
+  drupal_load('module', 'menu');
+
+  $menus = menu_get_menus();
+  foreach (array_keys($menus) as $machine_name) {
+    variable_del("menu_override_menu_main_{$machine_name}_visibility");
+    variable_del("menu_override_menu_main_{$machine_name}_pages");
+    variable_del("menu_override_menu_secondary_{$machine_name}_visibility");
+    variable_del("menu_override_menu_secondary_{$machine_name}_pages");
+  }
+}
